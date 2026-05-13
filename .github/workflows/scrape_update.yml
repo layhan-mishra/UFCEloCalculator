@@ -1,0 +1,40 @@
+name: Weekly UFC Elo Update
+
+on:
+  schedule:
+    # This tells the robot to run every Sunday at midnight
+    - cron: '0 0 * * 0'
+  workflow_dispatch: # This allows you to run it manually with a button click
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run Scraper
+        run: |
+          python run_scraper.py
+
+      - name: Copy data to Frontend
+        run: |
+          cp data/fighter_elo_ratings.csv frontend/public/fighter_elo_ratings.csv
+
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add .
+          git commit -m "Automated Weekly Elo Update" || echo "No changes to commit"
+          git push
