@@ -45,26 +45,33 @@ def run_scraper():
     if has_fighter_data and has_fight_data and has_elo_data:
         print("Existing data found. What would you like to do?")
         print("1. Use existing data and display results")
-        print("2. Re-scrape all data (this will take a long time)")
-        print("3. Run in testing mode (scrape first 10 fighters and 10 fights only)")
-        print("4. Exit")
+        print("2. UPDATE: Only scrape new events (Recommended)")
+        print("3. Re-scrape all data (this will take a long time)")
+        print("4. Run in testing mode (scrape first 10 fighters and 10 fights only)")
+        print("5. Exit")
         
-        choice = input("\nEnter your choice (1-4): ")
+        choice = input("\nEnter your choice (1-5): ")
         
         if choice == '1':
             display_results()
             return
         elif choice == '2':
+            print("Checking for new events ... ")
+            update_mode = True
+            testing_mode = False
+        elif choice == '3':
             # Delete existing data files
             cleanup_data_files()
             print("Deleted existing data files.")
+            update_mode = False
             testing_mode = False
-        elif choice == '3':
+        elif choice == '4':
             # Delete existing data files for fresh test
             cleanup_data_files()
             print("Deleted existing data files. Running in testing mode...")
+            update_mode = False
             testing_mode = True
-        elif choice == '4':
+        elif choice == '5':
             print("Exiting...")
             sys.exit(0)
         else:
@@ -101,7 +108,7 @@ def run_scraper():
     try:
         from ufc_elo_scraper import main
         # Pass testing mode to the main function
-        main(testing_mode=testing_mode)
+        main(testing_mode=testing_mode, update_mode=update_mode)
     except Exception as e:
         print(f"Error running scraper: {e}")
         sys.exit(1)

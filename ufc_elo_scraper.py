@@ -600,7 +600,7 @@ def print_validation_results(results):
     
     print(f"   Valid fight percentage: {valid_fights_pct:.1f}%")
 
-def main(testing_mode=False):
+def main(testing_mode=False, update_mode=False):
     """
     Main function to run the scraper and calculate ELO ratings
     """
@@ -614,7 +614,7 @@ def main(testing_mode=False):
         print("Step 1: Scraping fighter data...")
     
     # Check if fighter data already exists
-    if os.path.exists('data/fighters.json'):
+    if os.path.exists('data/fighters.json') and (testing_mode or update_mode):
         print("Loading existing fighter data...")
         with open('data/fighters.json', 'r', encoding='utf-8') as f:
             fighters = json.load(f)
@@ -640,6 +640,16 @@ def main(testing_mode=False):
     
     print(f"Collected data for {len(fighters)} fighters")
     
+    processed_event_names = set()
+    if update_mode and os.path.exists('data/fights.json'):
+        try:
+            with open('data/fights.json', 'r', encoding='utf-8') as f:
+                existing_fights = json.load(f)
+                processed_event_names = {fight.get('event_name') for fight in existing_fights if fight.get('event_name')}
+            print(f"Found {len(processed_event_names)} events already in database.")
+        except Exception as e:
+            print(f"Could not load existing fights for update: {e}")
+
     # Step 2: Scrape fight data
     if testing_mode:
         print("\nStep 2: Scraping fight data (TESTING MODE - limited to ~10 fights)...")
@@ -661,7 +671,15 @@ def main(testing_mode=False):
         fights = []
         for i, event_link in enumerate(event_links):
             print(f"Scraping event {i+1}/{len(event_links)}: {event_link}")
-            
+
+            # We'll look at the event to get its name
+            temp_soup = get_soup(event_link)
+            if temp_soup:
+                event_name = temp_soup.find('span', class_='b-content__title-highlight').text.strip()
+                if update_mode and event_name in processed_event_names:
+                    print(f"  >>> Skipping {event_name}: Already processed.")
+                    continue
+
             # Get fight links for this event
             fight_links = get_fight_links(event_link)
             
