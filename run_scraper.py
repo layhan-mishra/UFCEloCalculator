@@ -249,4 +249,9 @@ def display_results():
     print("\nThank you for using the UFC ELO Scraper!")
 
 if __name__ == "__main__":
-    run_scraper()
+    # If there is already data, default to update_mode for the automation
+    if os.path.exists('data/fights.json'):
+        from ufc_elo_scraper import main
+        main(testing_mode=False, update_mode=True)
+    else:
+        run_scraper()
