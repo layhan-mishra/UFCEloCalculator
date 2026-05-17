@@ -657,49 +657,66 @@ def main(testing_mode=False, update_mode=False):
         print("\nStep 2: Scraping fight data...")
     
     # Check if fight data already exists
+    # Check if fight data already exists
     if os.path.exists('data/fights.json'):
-        print("Loading existing fight data...")
+        print("Loading existing fight data into memory for appending...")
         with open('data/fights.json', 'r', encoding='utf-8') as f:
             fights = json.load(f)
     else:
-        # Get event links
-        event_links = get_event_links(testing_mode=testing_mode)
-        print(f"[DEBUG] Number of event links found: {len(event_links)}")
-
-        
-        # Scrape fight data
         fights = []
-        for i, event_link in enumerate(event_links):
-            print(f"Scraping event {i+1}/{len(event_links)}: {event_link}")
 
-            # We'll look at the event to get its name
-            temp_soup = get_soup(event_link)
-            if temp_soup:
-                event_name = temp_soup.find('span', class_='b-content__title-highlight').text.strip()
-                if update_mode and event_name in processed_event_names:
-                    print(f"  >>> Skipping {event_name}: Already processed.")
-                    continue
+    # Get all event links from the main index page
+    # Note: get_event_links() returns them from NEWEST to OLDEST
+    event_links = get_event_links(testing_mode=testing_mode)
+    print(f"Total historical events found on UFC Stats: {len(event_links)}")
 
-            # Get fight links for this event
-            fight_links = get_fight_links(event_link)
+    # NEW: We must also fetch the names matching those links directly from the main page
+    # to avoid the 'NoneType' title bug.
+    soup = get_soup(EVENTS_URL)
+    event_name_map = {}
+    if soup:
+        for a in soup.find_all('a', href=True):
+            if '/event-details/' in a['href']:
+                name_text = a.get_text(strip=True)
+                if name_text:
+                    event_name_map[a['href']] = name_text
+
+    # CRITICAL CHRONOLOGY: We loop through event_links BACKWARDS (reversed)
+    # This ensures old events stay at the top and brand-new 2026 events append cleanly to the bottom!
+    for i, event_link in enumerate(reversed(event_links)):
+        # Calculate true index going forward
+        current_idx = len(event_links) - i
+        
+        # Pull the name we mapped from the index page
+        event_name = event_name_map.get(event_link, "Unknown Event")
+        
+        # If we are in update mode and already have this event name in fights.json, skip it instantly!
+        if update_mode and event_name in processed_event_names and event_name != "Unknown Event":
+            print(f" [{current_idx}/{len(event_links)}] Skipping: {event_name} (Already processed)")
+            continue
             
-            for j, fight_link in enumerate(fight_links):
-                print(f"  Scraping fight {j+1}/{len(fight_links)}: {fight_link}")
-                fight_data = get_fight_data(fight_link)
-                if fight_data:
-                    print(f"Scraped fight: {fight_data.get('fighter1_name')} vs {fight_data.get('fighter2_name')}, winner: {fight_data.get('winner_name')}")
-                    fights.append(fight_data)
-                
-                # In testing mode, stop at 10 fights
-                if testing_mode and len(fights) >= 10:
-                    break
-                
-                # Add a small delay to avoid overloading the server
-                time.sleep(random.uniform(15, 17))
+        print(f" [{current_idx}/{len(event_links)}] 🟢 NEW DATA DETECTED! Scraping event: {event_name}")
+        
+        # Get fight links for this new event
+        fight_links = get_fight_links(event_link)
+
+        for j, fight_link in enumerate(fight_links):
+            print(f"  Scraping fight {j+1}/{len(fight_links)}: {fight_link}")
+            fight_data = get_fight_data(fight_link)
+            if fight_data:
+                print(f"Scraped fight: {fight_data.get('fighter1_name')} vs {fight_data.get('fighter2_name')}, winner: {fight_data.get('winner_name')}")
+                fights.append(fight_data)
             
-            # In testing mode, stop if we have enough fights
+            # In testing mode, stop at 10 fights
             if testing_mode and len(fights) >= 10:
                 break
+            
+            # Add a small delay to avoid overloading the server
+            time.sleep(random.uniform(15, 17))
+        
+        # In testing mode, stop if we have enough fights
+        if testing_mode and len(fights) >= 10:
+            break
         
         # Save fight data
         with open('data/fights.json', 'w', encoding='utf-8') as f:
