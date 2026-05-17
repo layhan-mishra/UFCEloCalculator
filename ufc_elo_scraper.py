@@ -700,6 +700,63 @@ def main(testing_mode=False, update_mode=False):
         # Get fight links for this new event
         fight_links = get_fight_links(event_link)
 
+        for fight_link in fight_links:
+            fight_soup = get_soup(fight_link)
+            if fight_soup:
+                # Find the two fighter profile links inside the specific match details page
+                fighter_anchors = fight_soup.find_all('a', class_='b-link b-fight-details__person-link')
+                for anchor in fighter_anchors:
+                    f_link = anchor.get('href')
+                    f_name = anchor.text.strip()
+                    
+                    # Look up if this fighter's unique link exists in our profiles list
+                    if f_link and not any(f.get('link') == f_link for f in fighters):
+                        print(f"   ✨ Missing or Debut fighter spotted: {f_name}! Extracting bio profile...")
+                        
+                        # Crawl the individual athlete's page to harvest their official stats
+                        fighter_soup = get_soup(f_link)
+                        if fighter_soup:
+                            # Default fallback schema
+                            fighter_details = {
+                                "name": f_name,
+                                "nickname": "",
+                                "record": "0-0-0",
+                                "height": "--",
+                                "weight": "--",
+                                "reach": "--",
+                                "stance": "--",
+                                "dob": "--",
+                                "link": f_link
+                            }
+                            
+                            # Parse nickname
+                            nick_elem = fighter_soup.find('p', class_='b-content__Nickname')
+                            if nick_elem:
+                                fighter_details["nickname"] = nick_elem.text.strip()
+                                
+                            # Parse physical stats from the list elements on ufcstats
+                            box_items = fighter_soup.find_all('li', class_='b-list__box-item')
+                            for item in box_items:
+                                text = item.text.strip()
+                                if "Height:" in text:
+                                    fighter_details["height"] = text.replace("Height:", "").strip()
+                                elif "Weight:" in text:
+                                    fighter_details["weight"] = text.replace("Weight:", "").strip()
+                                elif "Reach:" in text:
+                                    fighter_details["reach"] = text.replace("Reach:", "").strip()
+                                elif "Stance:" in text:
+                                    fighter_details["stance"] = text.replace("Stance:", "").strip()
+                                elif "DOB:" in text:
+                                    fighter_details["dob"] = text.replace("DOB:", "").strip()
+                            
+                            # Append the newly minted profile array into our loaded fighter database
+                            fighters.append(fighter_details)
+                            print(f"   Successfully added {f_name} to fighters.json")
+                            
+                            # Instantly save back to disk so we don't lose progress if it loops heavily
+                            with open('data/fighters.json', 'w', encoding='utf-8') as f_file:
+                                json.dump(fighters, f_file, indent=2)
+
         for j, fight_link in enumerate(fight_links):
             print(f"  Scraping fight {j+1}/{len(fight_links)}: {fight_link}")
             fight_data = get_fight_data(fight_link)
