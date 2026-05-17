@@ -1,212 +1,207 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Trophy, ShieldAlert, Award, ChevronRight, Activity } from 'lucide-react';
-import Papa from 'papaparse'; // Assumes you use papaparse for your CSV
+import { useState, useEffect } from 'react';
+import { Search } from 'lucide-react';
+import Papa from 'papaparse';
 
-// Standard UFC Weight Class List for our filter bar
 const WEIGHT_CLASSES = [
-  { id: 'all', name: 'Pound for Pound' },
-  { id: 'flyweight', name: 'Flyweight (125 lbs)' },
-  { id: 'bantamweight', name: 'Bantamweight (135 lbs)' },
-  { id: 'featherweight', name: 'Featherweight (145 lbs)' },
-  { id: 'lightweight', name: 'Lightweight (155 lbs)' },
-  { id: 'welterweight', name: 'Welterweight (170 lbs)' },
-  { id: 'middleweight', name: 'Middleweight (185 lbs)' },
-  { id: 'lightheavyweight', name: 'Light Heavyweight (205 lbs)' },
-  { id: 'heavyweight', name: 'Heavyweight (265 lbs)' },
+  { id: 'all', name: 'POUND FOR POUND' },
+  { id: 'heavyweight', name: 'HEAVYWEIGHT' },
+  { id: 'lightheavyweight', name: 'LIGHT HEAVYWEIGHT' },
+  { id: 'middleweight', name: 'MIDDLEWEIGHT' },
+  { id: 'welterweight', name: 'WELTERWEIGHT' },
+  { id: 'lightweight', name: 'LIGHTWEIGHT' },
+  { id: 'featherweight', name: 'FEATHERWEIGHT' },
+  { id: 'bantamweight', name: 'BANTAMWEIGHT' },
+  { id: 'flyweight', name: 'FLYWEIGHT' },
 ];
 
 export default function App() {
   const [fighters, setFighters] = useState([]);
-  const [filteredFighters, setFilteredFighters] = useState([]);
+  const [fighterBios, setFighterBios] = useState({});
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Dummy Data Loader - Replace the path with your actual public CSV endpoint or state loader
   useEffect(() => {
-    // In production, parse your 'data/fighter_elo_ratings.csv'
-    // Papa.parse('/data/fighter_elo_ratings.csv', { download: true, header: true, ... })
-    const mockData = [
-      { name: "Jon Jones", elo: 2150, weight_class: "heavyweight", record: "27-1-0", status: "Champion" },
-      { name: "Alex Pereira", elo: 2110, weight_class: "lightheavyweight", record: "12-2-0", status: "Champion" },
-      { name: "Tom Aspinall", elo: 2080, weight_class: "heavyweight", record: "15-3-0", status: "Interim Champion" },
-      { name: "Islam Makhachev", elo: 2095, weight_class: "lightweight", record: "26-1-0", status: "Champion" },
-      { name: "Max Holloway", elo: 1985, weight_class: "lightweight", record: "26-7-0", status: "Contender" },
-      { name: "Sean O'Malley", elo: 1950, weight_class: "bantamweight", record: "18-2-0", status: "Contender" },
-    ];
-    
-    // Sort by ELO descending out of the gate
-    const sorted = mockData.sort((a, b) => b.elo - a.elo);
-    setFighters(sorted);
-    setFilteredFighters(sorted);
+    async function loadProjectData() {
+      try {
+        // 1. Fetch profiles from the scraping pipeline
+        const bioResponse = await fetch('/data/fighters.json');
+        if (bioResponse.ok) {
+          const bioData = await bioResponse.json();
+          const bioMap = {};
+          bioData.forEach(item => {
+            if (item.name) bioMap[item.name.toLowerCase().trim()] = item;
+          });
+          setFighterBios(bioMap);
+        }
+
+        // 2. Fetch and parse calculated backend ELO ratings CSV
+        const csvResponse = await fetch('/data/fighter_elo_ratings.csv');
+        if (!csvResponse.ok) throw new Error("Ratings data file missing");
+        
+        const csvText = await csvResponse.text();
+        
+        Papa.parse(csvText, {
+          header: true,
+          skipEmptyLines: true,
+          dynamicTyping: true,
+          complete: (results) => {
+            const validFighters = results.data.filter(f => f.name && f.elo !== undefined);
+            setFighters(validFighters);
+            setIsLoading(false);
+          }
+        });
+      } catch (error) {
+        console.error("Data loading failure:", error);
+        setIsLoading(false);
+      }
+    }
+
+    loadProjectData();
   }, []);
 
-  // Filter Logic handling search queries and weight class pill selections concurrently
-  useEffect(() => {
-    let result = fighters;
-
-    if (activeTab !== 'all') {
-      result = result.filter(f => f.weight_class === activeTab);
-    }
-
+  // Compute filtered items synchronously during the render cycle to avoid state lag and ESLint warnings
+  const filteredFighters = fighters.filter(f => {
+    // Apply search filter if query is typed
     if (searchQuery.trim() !== '') {
-      result = result.filter(f => 
-        f.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      const query = searchQuery.toLowerCase().trim();
+      if (!f.name?.toString().toLowerCase().includes(query)) return false;
     }
 
-    setFilteredFighters(result);
-  }, [activeTab, searchQuery, fighters]);
+    // Apply weight class filter if a specific tab is selected
+    if (activeTab !== 'all') {
+      const nameKey = f.name?.toString().toLowerCase().trim();
+      const profileClass = fighterBios[nameKey]?.weight?.toString().toLowerCase().replace(/\s+/g, '');
+      const directClass = f.weight_class?.toString().toLowerCase().replace(/\s+/g, '');
+      
+      const matchesProfile = profileClass && profileClass.includes(activeTab);
+      const matchesDirect = directClass && directClass.includes(activeTab);
+      
+      if (!matchesProfile && !matchesDirect) return false;
+    }
+
+    return true;
+  });
 
   return (
-    <div className="min-h-screen bg-[#080a0f] bg-radial-gradient text-slate-100 font-sans selection:bg-rose-600 selection:text-white">
+    <div className="min-h-screen bg-[#000000] text-[#FFFFFF] font-sans selection:bg-[#E11D48] selection:text-white">
       
-      {/* PREMIUM HEADER BANNER */}
-      <header className="sticky top-0 z-40 border-b border-white/5 bg-[#080a0f]/80 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+      {/* BRAND HEADER */}
+      <header className="border-b border-[#1A1A1A] bg-[#000000]">
+        <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between gap-6">
           
-          {/* Logo Brand */}
-          <div className="flex items-center gap-2">
-            <div className="bg-gradient-to-br from-rose-500 to-rose-700 p-2 rounded-lg shadow-lg shadow-rose-950/40">
-              <Activity className="w-5 h-5 text-white animate-pulse" />
-            </div>
-            <div>
-              <span className="font-black tracking-wider text-xl uppercase italic bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-                OCTAGON<span className="text-rose-500">ELO</span>
-              </span>
-              <span className="hidden sm:inline-block ml-2 text-[10px] uppercase tracking-widest text-slate-500 font-mono bg-white/5 px-1.5 py-0.5 rounded">
-                v2.0 Live
-              </span>
-            </div>
+          <div>
+            <h1 className="font-black tracking-tighter text-2xl uppercase italic text-[#FFFFFF]">
+              UFC <span className="text-[#E11D48]">ELO</span> RANKINGS
+            </h1>
           </div>
 
-          {/* High-Performance Neon Search Bar */}
-          <div className="relative flex-1 max-w-md group">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-rose-500 transition-colors" />
+          {/* SEARCH SYSTEM */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#404040]" />
             <input
               type="text"
-              placeholder="Search active fighters..."
+              placeholder="SEARCH ATHLETE REGISTRY..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-10 pl-10 pr-4 bg-[#111622] border border-white/5 rounded-xl text-sm placeholder-slate-500 text-white focus:outline-none focus:border-rose-500/50 focus:ring-2 focus:ring-rose-500/20 transition-all duration-200"
+              className="w-full h-11 pl-10 pr-4 bg-[#0A0A0A] border border-[#262626] rounded-none text-sm font-mono tracking-wider text-white uppercase placeholder-[#404040] focus:outline-none focus:border-[#E11D48] transition-colors"
             />
           </div>
 
         </div>
       </header>
 
-      {/* MAIN APPLICATION CONTAINER */}
-      <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-        
-        {/* HORIZONTAL WEIGHT CLASS NAVBAR */}
-        <div className="space-y-2">
-          <label className="text-xs font-mono uppercase tracking-widest text-slate-500 block px-1">
-            Filter Divisional Brackets
-          </label>
-          <div className="flex items-center gap-2 overflow-x-auto pb-3 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-            {WEIGHT_CLASSES.map((wc) => (
-              <button
-                key={wc.id}
-                onClick={() => setActiveTab(wc.id)}
-                className={`whitespace-nowrap px-4 py-2 rounded-xl text-xs font-semibold tracking-wide border transition-all duration-200 ${
-                  activeTab === wc.id
-                    ? 'bg-gradient-to-r from-rose-600 to-rose-700 text-white border-rose-500 shadow-md shadow-rose-950/50 scale-[1.02]'
-                    : 'bg-[#111622] text-slate-400 border-white/5 hover:text-white hover:bg-[#161d2d]'
-                }`}
-              >
-                {wc.name}
-              </button>
-            ))}
-          </div>
+      {/* WEIGHT DIVISION NAVIGATION */}
+      <nav className="border-b border-[#1A1A1A] bg-[#000000]">
+        <div className="max-w-7xl mx-auto px-4 flex items-center gap-1 overflow-x-auto py-2 scrollbar-none">
+          {WEIGHT_CLASSES.map((wc) => (
+            <button
+              key={wc.id}
+              onClick={() => setActiveTab(wc.id)}
+              className={`whitespace-nowrap px-4 py-2 text-xs font-black tracking-widest border transition-colors ${
+                activeTab === wc.id
+                  ? 'bg-[#E11D48] text-[#FFFFFF] border-[#E11D48]'
+                  : 'bg-[#000000] text-[#A3A3A3] border-transparent hover:text-[#FFFFFF]'
+              }`}
+            >
+              {wc.name}
+            </button>
+          ))}
         </div>
+      </nav>
 
-        {/* DATA CONTAINER & GRID LAYOUT */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-          
-          {/* LEFT 3 COLUMNS: THE MAIN LEADERBOARD */}
-          <div className="lg:col-span-3 space-y-3">
-            <div className="flex items-center justify-between px-1">
-              <h2 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
-                <Trophy className="w-4 h-4 text-amber-500" />
-                Rankings Board
-              </h2>
-              <span className="text-xs font-mono text-slate-500 tabular-nums">
-                Showing {filteredFighters.length} competitors
-              </span>
+      {/* CORE LEADERBOARD */}
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        {isLoading ? (
+          <div className="text-center font-mono py-12 text-[#404040] tracking-widest text-xs">
+            PARSING ENGINE RECORDS...
+          </div>
+        ) : filteredFighters.length === 0 ? (
+          <div className="border border-[#1A1A1A] p-12 text-center font-mono text-xs text-[#404040] tracking-widest uppercase">
+            NO ATHLETE RECORDS FOUND MATCHING SELECTION.
+          </div>
+        ) : (
+          <div className="border border-[#1A1A1A] bg-[#050505]">
+            
+            {/* GRID DESCRIPTORS */}
+            <div className="grid grid-cols-12 gap-4 px-6 py-3 border-b border-[#1A1A1A] text-[10px] font-mono tracking-widest text-[#404040] uppercase">
+              <div className="col-span-1">RNK</div>
+              <div className="col-span-6 md:col-span-7">ATHLETE</div>
+              <div className="col-span-3 md:col-span-2 text-right">BOUTS</div>
+              <div className="col-span-2 text-right text-[#E11D48]">ELO</div>
             </div>
 
-            {filteredFighters.length === 0 ? (
-              <div className="bg-[#111622] border border-dashed border-white/5 rounded-2xl p-12 text-center text-slate-500">
-                No fighters found matching your current parameters.
-              </div>
-            ) : (
-              <div className="bg-[#111622]/40 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
-                <div className="divide-y divide-white/5">
-                  {filteredFighters.map((fighter, index) => (
-                    <div 
-                      key={fighter.name}
-                      className="flex items-center justify-between p-4 hover:bg-white/[0.02] transition-colors group cursor-pointer"
-                    >
-                      {/* Left: Rank & Name */}
-                      <div className="flex items-center gap-4">
-                        <span className="font-mono font-bold text-sm tracking-wider text-slate-500 w-6 text-center tabular-nums">
-                          #{index + 1}
-                        </span>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-white group-hover:text-rose-400 transition-colors">
-                              {fighter.name}
-                            </span>
-                            {fighter.status.includes('Champion') && (
-                              <span className="bg-gradient-to-r from-amber-500/20 to-yellow-600/20 text-amber-400 text-[10px] font-black uppercase px-2 py-0.5 rounded border border-amber-500/30 tracking-wider">
-                                👑 {fighter.status}
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-xs font-mono text-slate-400 uppercase tracking-wide">
-                            {fighter.weight_class} • <span className="text-slate-500">{fighter.record}</span>
-                          </span>
-                        </div>
-                      </div>
+            {/* GENERATED LIST ITEMS */}
+            <div className="divide-y divide-[#1A1A1A]">
+              {filteredFighters.map((fighter, index) => {
+                const nameKey = fighter.name?.toString().toLowerCase().trim();
+                const bio = fighterBios[nameKey] || {};
 
-                      {/* Right: Elo Metric Value */}
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <span className="font-mono font-black text-base text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-300 tabular-nums">
-                            {fighter.elo}
-                          </span>
-                          <span className="block text-[9px] font-mono uppercase tracking-widest text-slate-500">ELO SCORE</span>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
-                      </div>
-
+                return (
+                  <div 
+                    key={fighter.fighter_id || nameKey || index}
+                    className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-[#0A0A0A] transition-colors"
+                  >
+                    {/* Position Rank */}
+                    <div className="col-span-1 font-mono text-sm font-bold text-[#404040] tabular-nums">
+                      {index + 1}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
 
-          {/* RIGHT 1 COLUMN: SIDEBAR METRICS CARDS */}
-          <div className="space-y-4">
-            <div className="bg-[#111622] border border-white/5 rounded-2xl p-4 space-y-3">
-              <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                <Award className="w-3.5 h-3.5 text-rose-500" />
-                Engine Analytics
-              </h3>
-              <p className="text-sm text-slate-400 leading-relaxed">
-                Welcome to your fully automated UFC tracking platform. Elo metrics are completely recalculated from scratch every week directly from card outcomes.
-              </p>
-              <div className="pt-2 border-t border-white/5 flex justify-between text-xs font-mono text-slate-500">
-                <span>Database Status</span>
-                <span className="text-emerald-400 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> Operational
-                </span>
-              </div>
+                    {/* Fighter Core Bio */}
+                    <div className="col-span-6 md:col-span-7">
+                      <div className="font-bold text-sm text-[#FFFFFF] uppercase tracking-wide">
+                        {fighter.name}
+                      </div>
+                      {bio.height || bio.reach || bio.stance ? (
+                        <div className="text-[10px] font-mono text-[#737373] uppercase tracking-wider mt-0.5">
+                          {bio.height && `HT: ${bio.height}`} 
+                          {bio.reach && ` • REACH: ${bio.reach}`} 
+                          {bio.stance && ` • STANCE: ${bio.stance}`}
+                        </div>
+                      ) : (
+                        <div className="text-[10px] font-mono text-[#404040] uppercase tracking-wider mt-0.5">
+                          UFC COMPETITOR
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Fight Count Metric */}
+                    <div className="col-span-3 md:col-span-2 text-right font-mono text-xs text-[#A3A3A3] tracking-wide tabular-nums">
+                      {fighter.fight_count !== undefined ? `${fighter.fight_count} FGT` : '--'}
+                    </div>
+
+                    {/* Calculated Elo */}
+                    <div className="col-span-2 text-right font-mono font-black text-sm text-[#E11D48] tracking-wider tabular-nums">
+                      {Math.round(fighter.elo)}
+                    </div>
+
+                  </div>
+                );
+              })}
             </div>
+
           </div>
-
-        </div>
-
+        )}
       </main>
     </div>
   );

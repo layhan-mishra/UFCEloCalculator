@@ -25,10 +25,10 @@ def print_header(text):
 def check_data_exists():
     """Check if the required data files exist"""
     required_files = [
-        'data/fighter_elo_ratings.csv',
-        'data/fighter_history.json',
-        'data/fighters.json',
-        'data/fights.json'
+        'frontend/public/data/fighter_elo_ratings.csv',
+        'frontend/public/data/fighter_history.json',
+        'frontend/public/data/fighters.json',
+        'frontend/public/data/fights.json'
     ]
     
     for file in required_files:
@@ -41,18 +41,18 @@ def check_data_exists():
 def load_data():
     """Load the UFC ELO data"""
     # Load ELO ratings
-    elo_df = pd.read_csv('data/fighter_elo_ratings.csv')
+    elo_df = pd.read_csv('frontend/public/data/fighter_elo_ratings.csv')
     
     # Load fighter history
-    with open('data/fighter_history.json', 'r', encoding='utf-8') as f:
+    with open('frontend/public/data/fighter_history.json', 'r', encoding='utf-8') as f:
         fighter_history = json.load(f)
     
     # Load fighter data
-    with open('data/fighters.json', 'r', encoding='utf-8') as f:
+    with open('frontend/public/data/fighters.json', 'r', encoding='utf-8') as f:
         fighters = json.load(f)
     
     # Load fight data
-    with open('data/fights.json', 'r', encoding='utf-8') as f:
+    with open('frontend/public/data/fights.json', 'r', encoding='utf-8') as f:
         fights = json.load(f)
     
     return elo_df, fighter_history, fighters, fights

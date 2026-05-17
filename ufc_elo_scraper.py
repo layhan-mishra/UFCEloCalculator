@@ -605,7 +605,7 @@ def main(testing_mode=False, update_mode=False):
     Main function to run the scraper and calculate ELO ratings
     """
     # Create data directory if it doesn't exist
-    os.makedirs('data', exist_ok=True)
+    os.makedirs('frontend/public/data', exist_ok=True)
     
     # Step 1: Scrape fighter data
     if testing_mode:
@@ -614,9 +614,9 @@ def main(testing_mode=False, update_mode=False):
         print("Step 1: Scraping fighter data...")
     
     # Check if fighter data already exists
-    if os.path.exists('data/fighters.json') and (testing_mode or update_mode):
+    if os.path.exists('frontend/public/data/fighters.json') and (testing_mode or update_mode):
         print("Loading existing fighter data...")
-        with open('data/fighters.json', 'r', encoding='utf-8') as f:
+        with open('frontend/public/data/fighters.json', 'r', encoding='utf-8') as f:
             fighters = json.load(f)
     else:
         # Get fighter links
@@ -635,15 +635,15 @@ def main(testing_mode=False, update_mode=False):
             time.sleep(random.uniform(15, 17))
         
         # Save fighter data
-        with open('data/fighters.json', 'w', encoding='utf-8') as f:
+        with open('frontend/public/data/fighters.json', 'w', encoding='utf-8') as f:
             json.dump(fighters, f, indent=2)
     
     print(f"Collected data for {len(fighters)} fighters")
     
     processed_event_names = set()
-    if update_mode and os.path.exists('data/fights.json'):
+    if update_mode and os.path.exists('frontend/public/data/fights.json'):
         try:
-            with open('data/fights.json', 'r', encoding='utf-8') as f:
+            with open('frontend/public/data/fights.json', 'r', encoding='utf-8') as f:
                 existing_fights = json.load(f)
                 processed_event_names = {fight.get('event_name') for fight in existing_fights if fight.get('event_name')}
             print(f"Found {len(processed_event_names)} events already in database.")
@@ -658,9 +658,9 @@ def main(testing_mode=False, update_mode=False):
     
     # Check if fight data already exists
     # Check if fight data already exists
-    if os.path.exists('data/fights.json'):
+    if os.path.exists('frontend/public/data/fights.json'):
         print("Loading existing fight data into memory for appending...")
-        with open('data/fights.json', 'r', encoding='utf-8') as f:
+        with open('frontend/public/data/fights.json', 'r', encoding='utf-8') as f:
             fights = json.load(f)
     else:
         fights = []
@@ -754,7 +754,7 @@ def main(testing_mode=False, update_mode=False):
                             print(f"   Successfully added {f_name} to fighters.json")
                             
                             # Instantly save back to disk so we don't lose progress if it loops heavily
-                            with open('data/fighters.json', 'w', encoding='utf-8') as f_file:
+                            with open('frontend/public/data/fighters.json', 'w', encoding='utf-8') as f_file:
                                 json.dump(fighters, f_file, indent=2)
 
         for j, fight_link in enumerate(fight_links):
@@ -776,7 +776,7 @@ def main(testing_mode=False, update_mode=False):
             break
         
         # Save fight data
-        with open('data/fights.json', 'w', encoding='utf-8') as f:
+        with open('frontend/public/data/fights.json', 'w', encoding='utf-8') as f:
             json.dump(fights, f, indent=2)
     
     print(f"Collected data for {len(fights)} fights")
@@ -806,7 +806,7 @@ def main(testing_mode=False, update_mode=False):
             print(f"✅ Scraped {len(fights)} fights") 
             print("✅ Data validation completed")
             print("✅ ELO ratings calculated")
-            print("\nCheck data/fighter_elo_ratings.csv for results!")
+            print("\nCheck frontend/public/data/fighter_elo_ratings.csv for results!")
             print("="*60)
             
         except ImportError as e:

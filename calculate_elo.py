@@ -195,24 +195,24 @@ def main():
     print("="*60)
     
     # Check if data files exist
-    if not os.path.exists('data/fighters.json'):
-        print("❌ Error: data/fighters.json not found")
+    if not os.path.exists('frontend/public/data/fighters.json'):
+        print("❌ Error: frontend/public/data/fighters.json not found")
         print("Please run the scraper first to generate fighter data")
         return
     
-    if not os.path.exists('data/fights.json'):
-        print("❌ Error: data/fights.json not found")
+    if not os.path.exists('frontend/public/data/fights.json'):
+        print("❌ Error: frontend/public/data/fights.json not found")
         print("Please run the scraper first to generate fight data")
         return
     
     # Load fighter and fight data
     print("\nLoading fighter data...")
-    with open('data/fighters.json', 'r', encoding='utf-8') as f:
+    with open('frontend/public/data/fighters.json', 'r', encoding='utf-8') as f:
         fighters = json.load(f)
     print(f"Loaded {len(fighters)} fighters")
     
     print("\nLoading fight data...")
-    with open('data/fights.json', 'r', encoding='utf-8') as f:
+    with open('frontend/public/data/fights.json', 'r', encoding='utf-8') as f:
         fights = json.load(f)
     print(f"Loaded {len(fights)} fights")
     
@@ -244,10 +244,10 @@ def main():
         elo_df = elo_df.sort_values(by='elo', ascending=False)
         
         # Save ELO ratings to CSV
-        elo_df.to_csv('data/fighter_elo_ratings.csv', index=False)
+        elo_df.to_csv('frontend/public/data/fighter_elo_ratings.csv', index=False)
         
         print(f"\n✅ ELO ratings calculated for {len(fighter_elos)} fighters")
-        print(f"✅ Results saved to data/fighter_elo_ratings.csv")
+        print(f"✅ Results saved to frontend/public/data/fighter_elo_ratings.csv")
         
         # Print top fighters by ELO
         top_count = min(10, len(elo_df))
@@ -257,9 +257,9 @@ def main():
         print("\n❌ No valid fighter data found for ELO calculation")
     
     # Save fighter history
-    with open('data/fighter_history.json', 'w', encoding='utf-8') as f:
+    with open('frontend/public/data/fighter_history.json', 'w', encoding='utf-8') as f:
         json.dump(fighter_history, f, indent=2)
-    print(f"\n✅ Fighter history saved to data/fighter_history.json")
+    print(f"\n✅ Fighter history saved to frontend/public/data/fighter_history.json")
     
     print("\n" + "="*60)
     print("ELO CALCULATION COMPLETE")

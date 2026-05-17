@@ -38,9 +38,9 @@ def run_scraper():
         print("Created 'data' directory.")
     
     # Check if scraper has been run before
-    has_fighter_data = os.path.exists('data/fighters.json')
-    has_fight_data = os.path.exists('data/fights.json')
-    has_elo_data = os.path.exists('data/fighter_elo_ratings.csv')
+    has_fighter_data = os.path.exists('frontend/public/data/fighters.json')
+    has_fight_data = os.path.exists('frontend/public/data/fights.json')
+    has_elo_data = os.path.exists('frontend/public/data/fighter_elo_ratings.csv')
     
     if has_fighter_data and has_fight_data and has_elo_data:
         print("Existing data found. What would you like to do?")
@@ -119,10 +119,10 @@ def run_scraper():
 def cleanup_data_files():
     """Remove existing data files"""
     files_to_remove = [
-        'data/fighters.json',
-        'data/fights.json', 
-        'data/fighter_elo_ratings.csv',
-        'data/fighter_history.json'
+        'frontend/public/data/fighters.json',
+        'frontend/public/data/fights.json', 
+        'frontend/public/data/fighter_elo_ratings.csv',
+        'frontend/public/data/fighter_history.json'
     ]
     
     for file_path in files_to_remove:
@@ -134,13 +134,13 @@ def display_results():
     print_header("UFC ELO RATINGS RESULTS")
     
     # Check if results exist
-    if not os.path.exists('data/fighter_elo_ratings.csv'):
+    if not os.path.exists('frontend/public/data/fighter_elo_ratings.csv'):
         print("No results found. Please run the scraper first.")
         sys.exit(1)
     
     # Load ELO ratings
     try:
-        elo_df = pd.read_csv('data/fighter_elo_ratings.csv')
+        elo_df = pd.read_csv('frontend/public/data/fighter_elo_ratings.csv')
     except Exception as e:
         print(f"Error loading ELO ratings: {e}")
         sys.exit(1)
@@ -194,12 +194,12 @@ def display_results():
         ))
     
     # Display fighters by weight class
-    if os.path.exists('data/fighters.json') and os.path.exists('data/fighter_history.json'):
+    if os.path.exists('frontend/public/data/fighters.json') and os.path.exists('frontend/public/data/fighter_history.json'):
         print_section("TOP FIGHTERS BY WEIGHT CLASS")
         
         try:
             # Load fighter data
-            with open('data/fighters.json', 'r', encoding='utf-8') as f:
+            with open('frontend/public/data/fighters.json', 'r', encoding='utf-8') as f:
                 fighters = json.load(f)
             
             # Create a dictionary of fighter weight classes
@@ -241,16 +241,16 @@ def display_results():
     
     print_section("ANALYSIS COMPLETE")
     print("The full results are available in the 'data' directory:")
-    print("- data/fighter_elo_ratings.csv: ELO ratings for each fighter")
-    print("- data/fighter_history.json: Fight history for each fighter with ELO changes")
-    print("- data/fighters.json: Raw fighter data")
-    print("- data/fights.json: Raw fight data")
+    print("- frontend/public/data/fighter_elo_ratings.csv: ELO ratings for each fighter")
+    print("- frontend/public/data/fighter_history.json: Fight history for each fighter with ELO changes")
+    print("- frontend/public/data/fighters.json: Raw fighter data")
+    print("- frontend/public/data/fights.json: Raw fight data")
     
     print("\nThank you for using the UFC ELO Scraper!")
 
 if __name__ == "__main__":
     # If there is already data, default to update_mode for the automation
-    if os.path.exists('data/fights.json'):
+    if os.path.exists('frontend/public/data/fights.json'):
         from ufc_elo_scraper import main
         main(testing_mode=False, update_mode=True)
     else:

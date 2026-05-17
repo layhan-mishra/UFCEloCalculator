@@ -40,7 +40,7 @@ echo
 
 # Function to check if data files exist
 check_data_exists() {
-    if [ -f "data/fighter_elo_ratings.csv" ] && [ -f "data/fighters.json" ] && [ -f "data/fights.json" ]; then
+    if [ -f "frontend/public/data/fighter_elo_ratings.csv" ] && [ -f "frontend/public/data/fighters.json" ] && [ -f "frontend/public/data/fights.json" ]; then
         return 0  # Data exists
     else
         return 1  # No data
@@ -144,15 +144,15 @@ run_full_scraper() {
 clean_data() {
     echo
     echo "This will delete all existing scraped data:"
-    echo "- data/fighters.json"
-    echo "- data/fights.json"
-    echo "- data/fighter_elo_ratings.csv"
-    echo "- data/fighter_history.json"
+    echo "- frontend/public/data/fighters.json"
+    echo "- frontend/public/data/fights.json"
+    echo "- frontend/public/data/fighter_elo_ratings.csv"
+    echo "- frontend/public/data/fighter_history.json"
     echo
     read -p "Are you sure? (y/n): " confirm
     
     if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
-        rm -f data/fighters.json data/fights.json data/fighter_elo_ratings.csv data/fighter_history.json
+        rm -f frontend/public/data/fighters.json frontend/public/data/fights.json frontend/public/data/fighter_elo_ratings.csv frontend/public/data/fighter_history.json
         echo "✅ Data cleaned successfully."
     else
         echo "Data cleaning cancelled."
