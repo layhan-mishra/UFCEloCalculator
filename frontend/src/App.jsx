@@ -2,25 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import Papa from 'papaparse';
 
-const WEIGHT_CLASSES = [
-  { id: 'all', name: 'POUND FOR POUND' },
-  { id: 'heavyweight', name: 'HEAVYWEIGHT' },
-  { id: 'lightheavyweight', name: 'LIGHT HEAVYWEIGHT' },
-  { id: 'middleweight', name: 'MIDDLEWEIGHT' },
-  { id: 'welterweight', name: 'WELTERWEIGHT' },
-  { id: 'lightweight', name: 'LIGHTWEIGHT' },
-  { id: 'featherweight', name: 'FEATHERWEIGHT' },
-  { id: 'bantamweight', name: 'BANTAMWEIGHT' },
-  { id: 'flyweight', name: 'FLYWEIGHT' },
-];
-
 export default function App() {
   const [fighters, setFighters] = useState([]);
   const [fighterBios, setFighterBios] = useState({});
-  const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [isExpanded, setIsExpanded] = useState(false);
+  
+  // Track visible count incrementally by 15 items
+  const [visibleCount, setVisibleCount] = useState(15);
 
   useEffect(() => {
     async function loadProjectData() {
@@ -61,54 +50,38 @@ export default function App() {
     loadProjectData();
   }, []);
 
-  // Reset expansion state when changing tabs or typing a search query
+  // Reset pagination window when typing a search query to keep results tight
   useEffect(() => {
-    setIsExpanded(false);
-  }, [activeTab, searchQuery]);
+    setVisibleCount(15);
+  }, [searchQuery]);
 
   // Compute filtered items synchronously during the render cycle
   const filteredFighters = fighters.filter(f => {
-    // Apply search filter if query is typed
     if (searchQuery.trim() !== '') {
       const query = searchQuery.toLowerCase().trim();
       if (!f.name?.toString().toLowerCase().includes(query)) return false;
     }
-
-    // Apply weight class filter if a specific tab is selected
-    if (activeTab !== 'all') {
-      const nameKey = f.name?.toString().toLowerCase().trim();
-      const profileClass = fighterBios[nameKey]?.weight?.toString().toLowerCase().replace(/\s+/g, '');
-      const directClass = f.weight_class?.toString().toLowerCase().replace(/\s+/g, '');
-      
-      const matchesProfile = profileClass && profileClass.includes(activeTab);
-      const matchesDirect = directClass && directClass.includes(activeTab);
-      
-      if (!matchesProfile && !matchesDirect) return false;
-    }
-
     return true;
   });
 
-  // Cut list off at top 15 on the main P4P page unless user expands it manually
-  const displayFighters = (activeTab === 'all' && searchQuery.trim() === '' && !isExpanded)
-    ? filteredFighters.slice(0, 15)
-    : filteredFighters;
+  // Paginate list based on active visible step count
+  const displayFighters = filteredFighters.slice(0, visibleCount);
 
   return (
     <div className="min-h-screen bg-[#000000] text-[#FFFFFF] font-sans selection:bg-[#E11D48] selection:text-white antialiased">
       
       {/* BRAND HEADER */}
       <header className="border-b border-[#1A1A1A] bg-[#000000]">
-        <div className="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between gap-6">
+        <div className="max-w-5xl mx-auto px-8 h-28 flex items-center justify-between gap-8">
           
-          <div>
-            <h1 className="font-black tracking-tighter text-2xl uppercase italic text-[#FFFFFF]">
+          <div className="text-left">
+            <h1 className="font-black tracking-tighter text-3xl uppercase italic text-[#FFFFFF]">
               UFC <span className="text-[#E11D48]">ELO</span> RANKINGS
             </h1>
           </div>
 
           {/* SEARCH SYSTEM */}
-          <div className="relative flex-1 max-w-md">
+          <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#525252]" />
             <input
               type="text"
@@ -122,29 +95,10 @@ export default function App() {
         </div>
       </header>
 
-      {/* WEIGHT DIVISION NAVIGATION */}
-      <nav className="border-b border-[#1A1A1A] bg-[#000000]">
-        <div className="max-w-7xl mx-auto px-6 flex items-center gap-2 overflow-x-auto py-3 scrollbar-none">
-          {WEIGHT_CLASSES.map((wc) => (
-            <button
-              key={wc.id}
-              onClick={() => setActiveTab(wc.id)}
-              className={`whitespace-nowrap px-4 py-2 text-xs font-black tracking-widest border transition-colors ${
-                activeTab === wc.id
-                  ? 'bg-[#E11D48] text-[#FFFFFF] border-[#E11D48]'
-                  : 'bg-[#000000] text-[#A3A3A3] border-transparent hover:text-[#FFFFFF]'
-              }`}
-            >
-              {wc.name}
-            </button>
-          ))}
-        </div>
-      </nav>
-
       {/* CORE LEADERBOARD */}
-      <main className="max-w-7xl mx-auto px-6 py-10">
+      <main className="max-w-5xl mx-auto px-8 py-12">
         {isLoading ? (
-          <div className="text-left font-mono py-12 text-[#525252] tracking-widest text-xs uppercase">
+          <div className="text-left font-mono text-xs text-[#525252] tracking-widest uppercase">
             PARSING ENGINE RECORDS...
           </div>
         ) : displayFighters.length === 0 ? (
@@ -152,18 +106,18 @@ export default function App() {
             NO ATHLETE RECORDS FOUND MATCHING SELECTION.
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-6">
             
             {/* COLUMN LABEL ROW */}
-            <div className="grid grid-cols-12 gap-4 px-6 py-2 text-[11px] font-mono tracking-widest text-[#525252] uppercase">
-              <div className="col-span-1 text-left">RANK</div>
-              <div className="col-span-7 text-left">ATHLETE</div>
+            <div className="grid grid-cols-12 gap-6 px-8 text-[11px] font-mono tracking-widest text-[#525252] uppercase">
+              <div className="col-span-2 text-left">RANK</div>
+              <div className="col-span-6 text-left">ATHLETE</div>
               <div className="col-span-2 text-left">BOUTS</div>
-              <div className="col-span-2 text-right text-[#E11D48]">ELO RATING</div>
+              <div className="col-span-2 text-left text-[#E11D48]">ELO RATING</div>
             </div>
 
             {/* SPACED LIST ENTRIES */}
-            <div className="space-y-3">
+            <div className="space-y-6">
               {displayFighters.map((fighter, index) => {
                 const nameKey = fighter.name?.toString().toLowerCase().trim();
                 const bio = fighterBios[nameKey] || {};
@@ -171,35 +125,34 @@ export default function App() {
                 return (
                   <div 
                     key={fighter.fighter_id || nameKey || index}
-                    className="grid grid-cols-12 gap-4 px-6 py-5 items-center bg-[#050505] border border-[#1A1A1A] hover:border-[#262626] transition-colors"
+                    className="grid grid-cols-12 gap-6 px-8 py-8 items-center bg-[#050505] border border-[#1A1A1A] hover:border-[#E11D48] transition-colors"
                   >
-                    {/* Position Rank */}
-                    <div className="col-span-1 font-mono text-sm font-bold text-[#525252] tracking-wider text-left tabular-nums">
+                    {/* Position Rank - Left Aligned */}
+                    <div className="col-span-2 font-mono text-base font-black text-[#525252] tracking-wider text-left tabular-nums">
                       {index + 1}
                     </div>
 
                     {/* Fighter Core Bio - Heavily Left Aligned */}
-                    <div className="col-span-7 text-left">
-                      <div className="font-black text-base text-[#FFFFFF] uppercase tracking-wide">
+                    <div className="col-span-6 text-left">
+                      <div className="font-black text-lg text-[#FFFFFF] uppercase tracking-wide">
                         {fighter.name}
                       </div>
-                      {(bio.height || bio.reach || bio.stance || fighter.weight_class) && (
-                        <div className="text-[11px] font-mono text-[#737373] uppercase tracking-wider mt-1">
-                          {bio.height && `HEIGHT: ${bio.height}`} 
-                          {bio.reach && ` • REACH: ${bio.reach}`} 
-                          {bio.stance && ` • STANCE: ${bio.stance}`}
-                          {!bio.height && !bio.reach && !bio.stance && fighter.weight_class && `DIVISION: ${fighter.weight_class}`}
+                      {(bio.height || bio.reach || bio.stance) && (
+                        <div className="text-[11px] font-mono text-[#737373] uppercase tracking-wider mt-2 space-x-1">
+                          {bio.height && <span>HEIGHT: {bio.height}</span>} 
+                          {bio.reach && <span>• REACH: {bio.reach}</span>} 
+                          {bio.stance && <span>• STANCE: {bio.stance}</span>}
                         </div>
                       )}
                     </div>
 
-                    {/* Fight Count Metric */}
-                    <div className="col-span-2 text-left font-mono text-sm text-[#A3A3A3] tracking-wide uppercase tabular-nums">
+                    {/* Fight Count Metric - Left Aligned */}
+                    <div className="col-span-2 text-left font-mono text-sm font-bold text-[#A3A3A3] tracking-wider uppercase tabular-nums">
                       {fighter.fight_count !== undefined ? `${fighter.fight_count} FIGHTS` : '--'}
                     </div>
 
-                    {/* Calculated Elo */}
-                    <div className="col-span-2 text-right font-mono font-black text-base text-[#E11D48] tracking-wider tabular-nums">
+                    {/* Calculated Elo - Left Aligned */}
+                    <div className="col-span-2 text-left font-mono font-black text-lg text-[#E11D48] tracking-widest tabular-nums">
                       {Math.round(fighter.elo)}
                     </div>
 
@@ -208,14 +161,14 @@ export default function App() {
               })}
             </div>
 
-            {/* EXPANSION CONTROL FOR MAIN POUND-FOR-POUND LIST */}
-            {activeTab === 'all' && searchQuery.trim() === '' && filteredFighters.length > 15 && (
-              <div className="pt-4 text-left">
+            {/* EXPANSION CONTROL - LOADS 15 MORE AT A TIME */}
+            {filteredFighters.length > visibleCount && (
+              <div className="pt-6 text-left">
                 <button
-                  onClick={() => setIsExpanded(!isExpanded)}
-                  className="px-6 py-3 border border-[#262626] hover:border-[#E11D48] text-xs font-mono font-bold tracking-widest text-[#A3A3A3] hover:text-[#FFFFFF] transition-colors bg-[#000000] uppercase"
+                  onClick={() => setVisibleCount(prev => prev + 15)}
+                  className="px-8 py-4 border border-[#262626] hover:border-[#E11D48] text-xs font-mono font-black tracking-widest text-[#A3A3A3] hover:text-[#FFFFFF] transition-colors bg-[#000000] uppercase"
                 >
-                  {isExpanded ? "SHOW LESS RANKINGS" : `SHOW ALL RANKINGS (${filteredFighters.length} COMPETITORS)`}
+                  SHOW MORE RANKINGS
                 </button>
               </div>
             )}
