@@ -3,7 +3,7 @@ import { Search } from 'lucide-react';
 import Papa from 'papaparse';
 import './App.css';
 
-const ITEMS_PER_PAGE = 16;
+const ITEMS_PER_PAGE = 15;
 const DATA_PATHS = {
   metadata: '/data/fighters.json',
   ratings: '/data/fighter_elo_ratings.csv',
@@ -102,9 +102,9 @@ export default function App() {
         <header className="app-hero">
           <div className="hero-copy">
             <span className="eyebrow">UFC ELO dashboard</span>
-            <h1>Elite fighter rankings built for analysis.</h1>
+            <h1>Elite fighter rankings built by computers</h1>
             <p>
-              Browse the latest UFC ELO ratings, compare athlete stats, and surface the strongest
+              Browse the latest UFC ELO ratings, compare athlete stats, and research the strongest
               current contenders in the division.
             </p>
           </div>
@@ -205,7 +205,7 @@ export default function App() {
         </section>
 
         <footer className="app-footer">
-          <p>Data currently sourced from local UFC ELO CSV and metadata exports.</p>
+          <p>Data sourced from local UFC ELO CSV and metadata exports.</p>
         </footer>
       </div>
     </div>
