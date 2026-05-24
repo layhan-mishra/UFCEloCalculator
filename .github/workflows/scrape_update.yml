@@ -27,10 +27,6 @@ jobs:
         run: |
           python run_scraper.py
 
-      - name: Copy data to Frontend
-        run: |
-          cp data/fighter_elo_ratings.csv frontend/public/fighter_elo_ratings.csv
-
       - name: Commit and Push changes
         run: |
           git config --global user.name 'github-actions[bot]'
