@@ -28,24 +28,41 @@ session.headers.update({
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
 })
 
-def get_soup(url, retries=3, delay=15):
+import requests
+import time
+import random
+from bs4 import BeautifulSoup
+
+def get_soup(url):
     """
-    Get BeautifulSoup object from URL with retry mechanism
+    Core helper to fetch a URL and return a parsed BeautifulSoup object
+    with robust anti-blocking headers.
     """
-    for i in range(retries):
-        try:
-            response = session.get(url)
-            response.raise_for_status()
-            return BeautifulSoup(response.text, 'html.parser')
-        except Exception as e:
-            print(f"Error fetching {url}: {e}")
-            if i < retries - 1:
-                sleep_time = delay * (i + 1)
-                print(f"Retrying in {sleep_time} seconds...")
-                time.sleep(sleep_time)
-            else:
-                print(f"Failed to fetch {url} after {retries} attempts")
-                return None
+    # Emulate a modern desktop browser session
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+    }
+    
+    try:
+        # Add a tiny natural delay before hitting the network path
+        time.sleep(random.uniform(1.5, 2.5))
+        
+        response = requests.get(url, headers=headers, timeout=15)
+        
+        # Hard check: If the server is blocking you, log the status code instantly
+        if response.status_code != 200:
+            print(f"⚠️ NETWORK ERROR: UFC Stats returned Status Code {response.status_code} for URL: {url}")
+            return None
+            
+        return BeautifulSoup(response.text, 'html.parser')
+        
+    except Exception as e:
+        print(f"⚠️ CONNECTION FAILURE: Could not connect to target host routing: {e}")
+        return None
 
 def get_fighter_links(testing_mode=False):
     """
@@ -141,52 +158,24 @@ def get_event_links(testing_mode=False):
     """
     event_links = []
     
-    # Force the single-page total layout path explicitly
+    # Target the full archive single page dump
     ALL_EVENTS_URL = "http://ufcstats.com/statistics/events/completed?page=all"
+    soup = get_soup(ALL_EVENTS_URL)
     
-    # 1. Inject a comprehensive modern user agent header configuration
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5'
-    }
-    
-    # 2. Bypass get_soup if it's dropping header data internally
-    try:
-        import requests
-        from bs4 import BeautifulSoup
-        
-        response = requests.get(ALL_EVENTS_URL, headers=headers, timeout=15)
-        soup = BeautifulSoup(response.text, 'html.parser')
-    except Exception as e:
-        print(f"Extraction Error: Failed to contact UFC Stats layout: {e}")
-        return event_links
-
     if not soup:
-        print("Extraction Error: Received empty DOM tree from URL request target.")
+        print("⚠️ FAILURE: get_soup returned None. Check network or blocker logs above.")
         return event_links
 
-    # 3. Find links containing event-details
-    all_anchors = soup.find_all('a', href=True)
-    
-    # Hard alert check to diagnose instantly
-    if len(all_anchors) == 0:
-        print("⚠️ CRITICAL DIAGNOSTIC: BeautifulSoup found 0 <a> tags total. You are being rate-limited or cloud-blocked by the host server.")
-        return event_links
-
-    for a in all_anchors:
+    # Scan the parsed DOM for event detail anchors
+    for a in soup.find_all('a', href=True):
         href = a['href'].strip()
-        if 'event-details' in href and href not in event_links:
+        if '/event-details/' in href and href not in event_links:
             event_links.append(href)
             
-            # In testing mode, limit to 5 events to get ~10 fights
             if testing_mode and len(event_links) >= 5:
                 break
 
-    # Add a small delay to avoid overloading the server
-    time.sleep(random.uniform(15, 17))
-
-    print(f"Found {len(event_links)} event links")
+    print(f"Successfully tracked {len(event_links)} total event links from archive table node.")
     return event_links
 
 def get_fight_links(event_url):
