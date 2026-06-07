@@ -141,15 +141,17 @@ def get_event_links(testing_mode=False):
     """
     event_links = []
     
-    # Load first page of events
-    soup = get_soup(EVENTS_URL)
+    # FIX: Force the scraper to look at the full list page instead of just the default home snapshot
+    ALL_EVENTS_URL = "http://ufcstats.com/statistics/events/completed?page=all"
+    soup = get_soup(ALL_EVENTS_URL)
+    
     if not soup:
         return event_links
 
     # Find all links that contain /event-details/
     for a in soup.find_all('a', href=True):
         href = a['href']
-        if '/event-details/' in href and href not in event_links:
+        if 'event-details' in href and href not in event_links:
             event_links.append(href)
             
             # In testing mode, limit to 5 events to get ~10 fights
