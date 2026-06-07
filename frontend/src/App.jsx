@@ -10,6 +10,18 @@ const DATA_PATHS = {
   history: '/data/fighter_history.json',
 };
 
+const WEIGHT_CLASSES = [
+  { id: 'all', name: 'Pound for Pound'},
+  { id: 'heavyweight', name: 'Heavyweight' },
+  { id: 'light-heavyweight', name: 'Light Heavyweight' },
+  { id: 'middleweight', name: 'Middleweight' },
+  { id: 'welterweight', name: 'Welterweight' },
+  { id: 'lightweight', name: 'Lightweight' },
+  { id: 'featherweight', name: 'Featherweight' },
+  { id: 'bantamweight', name: 'Bantamweight' },
+  { id: 'flyweight', name: 'Flyweight' },
+];
+
 export default function App() {
   const [fighters, setFighters] = useState([]);
   const [fighterBios, setFighterBios] = useState({});
@@ -17,6 +29,8 @@ export default function App() {
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activeWeightClass, setActiveWeightClass] = useState('all');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   // View States: null means show the Leaderboard, an ID string (e.g. 'jon-jones') means show that fighter's profile
   const [selectedFighterId, setSelectedFighterId] = useState(null);
@@ -116,14 +130,30 @@ export default function App() {
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
-  const filteredFighters = useMemo(
-    () =>
-      fighters.filter((fighter) => {
-        if (!normalizedQuery) return true;
-        return fighter.name?.toString().toLowerCase().includes(normalizedQuery);
-      }),
-    [fighters, normalizedQuery]
-  );
+  const filteredFighters = useMemo(() => {
+  return fighters.filter((fighter) => {
+    // 1. Handle search query filter
+    if (normalizedQuery && !fighter.name?.toString().toLowerCase().includes(normalizedQuery)) {
+      return false;
+    }
+
+    // 2. Handle weight class filter
+    if (activeWeightClass !== 'all') {
+      const bio = fighterBios[fighter.name?.toLowerCase().trim()] || {};
+      
+      // Check the scraped metadata file field or the ratings file field
+      const profileClass = bio.weight?.toString().toLowerCase() || '';
+      const directClass = fighter.weight_class?.toString().toLowerCase() || '';
+      const targetClass = activeWeightClass.toLowerCase();
+
+      if (!profileClass.includes(targetClass) && !directClass.includes(targetClass)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+}, [fighters, normalizedQuery, activeWeightClass, fighterBios]);
 
   const displayFighters = filteredFighters.slice(0, visibleCount);
   const hasMore = filteredFighters.length > visibleCount;
@@ -152,19 +182,73 @@ export default function App() {
               </div>
 
               <div className="hero-search">
-                <div className="search-field">
-                  <Search className="search-icon" />
-                  <input
-                    id="fighter-search"
-                    type="search"
-                    value={searchQuery}
-                    onChange={handleSearchChange}
-                    placeholder="Search fighters or weight classes"
-                    aria-label="Search fighters"
-                  />
+            <div className="search-field">
+              <Search className="search-icon" />
+              <input
+                id="fighter-search"
+                type="search"
+                value={searchQuery}
+                onChange={handleSearchChange}
+                placeholder="Search fighters"
+                aria-label="Search fighters"
+              />
+            </div>
+            
+            {/* EXPANDABLE WEIGHT CLASSES SORTING MENU */}
+            <div style={{ marginTop: '1rem', position: 'relative', textAlign: 'left' }}>
+              <button
+                type="button"
+                className="button button--ghost"
+                style={{ padding: '0.6rem 1.2rem', fontSize: '0.85rem', textTransform: 'uppercase', fontFamily: 'monospace', letterSpacing: '0.1em' }}
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              >
+                Division: {WEIGHT_CLASSES.find(c => c.id === activeWeightClass)?.name} ▼
+              </button>
+
+              {isDropdownOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: '105%',
+                  left: 0,
+                  backgroundColor: '#050505',
+                  border: '1px solid #1A1A1A',
+                  zIndex: 50,
+                  width: '240px',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.8)'
+                }}>
+                  {WEIGHT_CLASSES.map((wc) => (
+                    <button
+                      key={wc.id}
+                      type="button"
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        padding: '0.75rem 1.25rem',
+                        textAlign: 'left',
+                        backgroundColor: activeWeightClass === wc.id ? '#121212' : 'transparent',
+                        color: activeWeightClass === wc.id ? '#E11D48' : '#FFFFFF',
+                        border: 'none',
+                        borderBottom: '1px solid #1A1A1A',
+                        fontFamily: 'monospace',
+                        fontSize: '0.8rem',
+                        textTransform: 'uppercase',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => {
+                        setActiveWeightClass(wc.id);
+                        setVisibleCount(ITEMS_PER_PAGE);
+                        setIsDropdownOpen(false);
+                      }}
+                    >
+                      {wc.name}
+                    </button>
+                  ))}
                 </div>
-                <p className="search-note">Search by full or partial fighter name.</p>
-              </div>
+              )}
+            </div>
+
+            <p className="search-note">Search by name or filter by target weight division tier.</p>
+          </div>
             </header>
 
             <section className="summary-grid">
@@ -334,14 +418,14 @@ export default function App() {
                     let eloDiffElement = <span style={{ color: '#525252' }}>—</span>;
                     if (currentBoutElo !== null) {
                       const diff = Math.round(currentBoutElo - previousBoutElo);
-                    if (diff > 0) {
-                      eloDiffElement = <span style={{ color: '#E11D48', fontFamily: 'monospace' }}>+{diff}</span>;
-                    } else if (diff < 0) {
-                      eloDiffElement = <span style={{ color: '#525252', fontFamily: 'monospace' }}>{diff}</span>;
-                    } else {
-                      eloDiffElement = <span style={{ color: '#A3A3A3', fontFamily: 'monospace' }}>0</span>;
+                      if (diff > 0) {
+                        eloDiffElement = <span style={{ color: '#E11D48', fontFamily: 'monospace' }}>+{diff}</span>;
+                      } else if (diff < 0) {
+                        eloDiffElement = <span style={{ color: '#525252', fontFamily: 'monospace' }}>{diff}</span>;
+                      } else {
+                        eloDiffElement = <span style={{ color: '#A3A3A3', fontFamily: 'monospace' }}>0</span>;
+                      }
                     }
-                  }
 
                     return (
                       <div 
