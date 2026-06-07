@@ -154,28 +154,51 @@ def get_fighter_data(fighter_url):
 
 def get_event_links(testing_mode=False):
     """
-    Get links to all UFC event pages
+    Get links to all UFC event pages by targeting the exact table anchor classes.
     """
     event_links = []
     
-    # Target the full archive single page dump
+    # Using the complete history query path
     ALL_EVENTS_URL = "http://ufcstats.com/statistics/events/completed?page=all"
-    soup = get_soup(ALL_EVENTS_URL)
     
-    if not soup:
-        print("⚠️ FAILURE: get_soup returned None. Check network or blocker logs above.")
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+    }
+    
+    try:
+        # Using a requests Session to handle cookies and headers cleanly like a real browser
+        session = requests.Session()
+        response = session.get(ALL_EVENTS_URL, headers=headers, timeout=15)
+        
+        if response.status_code != 200:
+            print(f"⚠️ HTTP ERROR {response.status_code}: Unable to reach UFC Stats.")
+            return event_links
+            
+        soup = BeautifulSoup(response.text, 'html.parser')
+    except Exception as e:
+        print(f"⚠️ CONNECTION ERROR: {e}")
         return event_links
 
-    # Scan the parsed DOM for event detail anchors
-    for a in soup.find_all('a', href=True):
-        href = a['href'].strip()
-        if '/event-details/' in href and href not in event_links:
+    # TARGET EXCLUSIVELY: <a class="b-link b-link_style_black">
+    targeted_anchors = soup.find_all('a', class_='b-link b-link_style_black')
+    print(f"Diagnostics: Found {len(targeted_anchors)} matching theme anchor elements.")
+
+    for a in targeted_anchors:
+        href = a.get('href', '').strip()
+        
+        # Verify it has the event-details path
+        if 'event-details' in href and href not in event_links:
             event_links.append(href)
             
             if testing_mode and len(event_links) >= 5:
                 break
 
-    print(f"Successfully tracked {len(event_links)} total event links from archive table node.")
+    # Natural throttling delay
+    time.sleep(random.uniform(2.0, 3.5))
+
+    print(f"Successfully tracked {len(event_links)} total event links.")
     return event_links
 
 def get_fight_links(event_url):
