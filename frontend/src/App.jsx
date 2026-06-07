@@ -295,7 +295,6 @@ export default function App() {
               </div>
             </header>
 
-            {/* MATCH HISTORY DATA POINTS */}
             <h2 style={{ fontSize: '0.75rem', fontFamily: 'monospace', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#525252', marginBottom: '1.5rem', textAlign: 'left' }}>
               Chronological Performance Log
             </h2>
@@ -308,15 +307,16 @@ export default function App() {
               </div>
             ) : (
               <div className="ranking-table">
-                <div className="table-head" style={{ gridTemplateColumns: '1.5fr 3fr 2.5fr 1.5fr' }}>
+                <div className="table-head" style={{ gridTemplateColumns: '1.5fr 3fr 2.5fr 1.5fr 1.5fr' }}>
                   <span>Outcome</span>
                   <span className="table-athlete">Opponent</span>
                   <span>Method</span>
+                  <span style={{ textAlign: 'right' }}>Impact</span>
                   <span style={{ textAlign: 'right' }}>Post ELO</span>
                 </div>
                 <div className="table-body">
                   {/* Map history reverse chronological so their newest fights display first */}
-                  {[...activeHistory].reverse().map((bout, idx) => {
+                  {[...activeHistory].reverse().map((bout, idx, reversedArray) => {
                     const winState = bout.result?.toLowerCase() === 'win';
                     const lossState = bout.result?.toLowerCase() === 'loss';
                     
@@ -324,12 +324,31 @@ export default function App() {
                     if (winState) outcomeStyle = { color: '#E11D48', fontWeight: 'black' };
                     if (lossState) outcomeStyle = { color: '#525252', fontWeight: 'normal' };
 
+                    // Fallbacks for variable names inside fighter_history.json
+                    const currentBoutElo = bout.post_elo ?? bout.elo ?? null;
+                    
+                    // Look back at the previous chronological fight (which is next in our reversed array) to find the delta
+                    const nextInReversed = reversedArray[idx + 1];
+                    const previousBoutElo = nextInReversed ? (nextInReversed.post_elo ?? nextInReversed.elo) : 1000; // 1000 is default baseline initial_elo
+                    
+                    let eloDiffElement = <span style={{ color: '#525252' }}>—</span>;
+                    if (currentBoutElo !== null) {
+                      const diff = Math.round(currentBoutElo - previousBoutElo);
+                      if (diff > 0) {
+                        eloDiffElement = <span style={{ color: '#E11D48', fontFamily: 'monospace' }}>+{diff}</span>;
+                      } else if (diff < 0) {
+                        eloDiffElement = <span style={{ color: '#525252', fontFamily: 'monospace' }}>{diff}</span>;
+                      } else {
+                        eloDiffElement = <span style={{ color: '#A3A3A3', fontFamily: 'monospace' }}>0</span>;
+                      }
+                    }
+
                     return (
                       <div 
                         key={idx} 
                         className="table-row" 
                         style={{ 
-                          gridTemplateColumns: '1.5fr 3fr 2.5fr 1.5fr',
+                          gridTemplateColumns: '1.5fr 3fr 2.5fr 1.5fr 1.5fr',
                           padding: '1.25rem 1.5rem',
                           borderBottom: '1px solid #1A1A1A'
                         }}
@@ -341,8 +360,13 @@ export default function App() {
                         <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: '#A3A3A3' }}>
                           {bout.method || 'Decision'}
                         </span>
+                        {/* Gained / Lost Column */}
+                        <span style={{ textAlign: 'right', fontWeight: 'bold' }}>
+                          {eloDiffElement}
+                        </span>
+                        {/* Absolute Elo Result Column */}
                         <span style={{ textAlign: 'right', fontFamily: 'monospace', color: '#FFFFFF', fontWeight: 'bold' }}>
-                          {bout.post_elo ? Math.round(bout.post_elo) : '—'}
+                          {currentBoutElo ? Math.round(currentBoutElo) : '—'}
                         </span>
                       </div>
                     );
@@ -352,10 +376,6 @@ export default function App() {
             )}
           </div>
         )}
-
-        <footer className="app-footer">
-          <p>Data sourced from local UFC ELO CSV and metadata exports.</p>
-        </footer>
       </div>
     </div>
   );
