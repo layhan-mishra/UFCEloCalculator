@@ -141,16 +141,41 @@ def get_event_links(testing_mode=False):
     """
     event_links = []
     
-    # FIX: Force the scraper to look at the full list page instead of just the default home snapshot
+    # Force the single-page total layout path explicitly
     ALL_EVENTS_URL = "http://ufcstats.com/statistics/events/completed?page=all"
-    soup = get_soup(ALL_EVENTS_URL)
     
-    if not soup:
+    # 1. Inject a comprehensive modern user agent header configuration
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5'
+    }
+    
+    # 2. Bypass get_soup if it's dropping header data internally
+    try:
+        import requests
+        from bs4 import BeautifulSoup
+        
+        response = requests.get(ALL_EVENTS_URL, headers=headers, timeout=15)
+        soup = BeautifulSoup(response.text, 'html.parser')
+    except Exception as e:
+        print(f"Extraction Error: Failed to contact UFC Stats layout: {e}")
         return event_links
 
-    # Find all links that contain /event-details/
-    for a in soup.find_all('a', href=True):
-        href = a['href']
+    if not soup:
+        print("Extraction Error: Received empty DOM tree from URL request target.")
+        return event_links
+
+    # 3. Find links containing event-details
+    all_anchors = soup.find_all('a', href=True)
+    
+    # Hard alert check to diagnose instantly
+    if len(all_anchors) == 0:
+        print("⚠️ CRITICAL DIAGNOSTIC: BeautifulSoup found 0 <a> tags total. You are being rate-limited or cloud-blocked by the host server.")
+        return event_links
+
+    for a in all_anchors:
+        href = a['href'].strip()
         if 'event-details' in href and href not in event_links:
             event_links.append(href)
             
