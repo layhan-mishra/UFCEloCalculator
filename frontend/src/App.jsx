@@ -325,23 +325,23 @@ export default function App() {
                     if (lossState) outcomeStyle = { color: '#525252', fontWeight: 'normal' };
 
                     // Fallbacks for variable names inside fighter_history.json
-                    const currentBoutElo = bout.post_elo ?? bout.elo ?? null;
+                    const currentBoutElo = bout.new_elo ?? bout.post_elo ?? bout.elo ?? null;
                     
                     // Look back at the previous chronological fight (which is next in our reversed array) to find the delta
                     const nextInReversed = reversedArray[idx + 1];
-                    const previousBoutElo = nextInReversed ? (nextInReversed.post_elo ?? nextInReversed.elo) : 1000; // 1000 is default baseline initial_elo
-                    
+                    const previousBoutElo = nextInReversed ? (nextInReversed.new_elo ?? nextInReversed.post_elo ?? nextInReversed.elo) : 1000; 
+
                     let eloDiffElement = <span style={{ color: '#525252' }}>—</span>;
                     if (currentBoutElo !== null) {
                       const diff = Math.round(currentBoutElo - previousBoutElo);
-                      if (diff > 0) {
-                        eloDiffElement = <span style={{ color: '#E11D48', fontFamily: 'monospace' }}>+{diff}</span>;
-                      } else if (diff < 0) {
-                        eloDiffElement = <span style={{ color: '#525252', fontFamily: 'monospace' }}>{diff}</span>;
-                      } else {
-                        eloDiffElement = <span style={{ color: '#A3A3A3', fontFamily: 'monospace' }}>0</span>;
-                      }
+                    if (diff > 0) {
+                      eloDiffElement = <span style={{ color: '#E11D48', fontFamily: 'monospace' }}>+{diff}</span>;
+                    } else if (diff < 0) {
+                      eloDiffElement = <span style={{ color: '#525252', fontFamily: 'monospace' }}>{diff}</span>;
+                    } else {
+                      eloDiffElement = <span style={{ color: '#A3A3A3', fontFamily: 'monospace' }}>0</span>;
                     }
+                  }
 
                     return (
                       <div 
