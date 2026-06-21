@@ -32,36 +32,38 @@ import requests
 import time
 import random
 from bs4 import BeautifulSoup
+import urllib.request
 
 def get_soup(url):
     """
     Core helper to fetch a URL and return a parsed BeautifulSoup object
-    with robust anti-blocking headers.
+    using a hard-spoofed native browser client to bypass Cloudflare.
     """
-    # Emulate a modern desktop browser session
+    url = url.strip()
+    
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none'
     }
     
     try:
-        # Add a tiny natural delay before hitting the network path
-        time.sleep(random.uniform(1.5, 2.5))
+        time.sleep(random.uniform(2.0, 3.5))
+        req = urllib.request.Request(url, headers=headers)
         
-        response = requests.get(url, headers=headers, timeout=15)
-        
-        # Hard check: If the server is blocking you, log the status code instantly
-        if response.status_code != 200:
-            print(f"⚠️ NETWORK ERROR: UFC Stats returned Status Code {response.status_code} for URL: {url}")
-            return None
+        with urllib.request.urlopen(req, timeout=20) as response:
+            html = response.read()
+            if len(html) < 1000:
+                print(f"⚠️ Warning: Unusually small payload received from {url}")
+            return BeautifulSoup(html, 'html.parser')
             
-        return BeautifulSoup(response.text, 'html.parser')
-        
     except Exception as e:
-        print(f"⚠️ CONNECTION FAILURE: Could not connect to target host routing: {e}")
+        print(f"⚠️ FETCH FAILED for {url}: {e}")
         return None
 
 def get_fighter_links(testing_mode=False):
@@ -154,53 +156,40 @@ def get_fighter_data(fighter_url):
 
 def get_event_links(testing_mode=False):
     """
-    Get links to all UFC event pages by targeting the exact table anchor classes.
+    Get links and names to all UFC event pages in a single pass.
+    Returns a tuple: (event_links_list, event_name_dictionary)
     """
     event_links = []
+    event_name_map = {}
     
-    # Using the complete history query path
     ALL_EVENTS_URL = "http://ufcstats.com/statistics/events/completed?page=all"
+    print(f"Fetching master event list from: {ALL_EVENTS_URL}")
     
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-    }
+    soup = get_soup(ALL_EVENTS_URL)
+    if not soup:
+        print("⚠️ CRITICAL: Could not load the master events page.")
+        return event_links, event_name_map
+
+    # Universal catch for ANY anchor tag containing 'event-details' in the path
+    # This completely bypasses the broken 'b-link_style_black' class checking
+    all_anchors = soup.find_all('a', href=True)
     
-    try:
-        # Using a requests Session to handle cookies and headers cleanly like a real browser
-        session = requests.Session()
-        response = session.get(ALL_EVENTS_URL, headers=headers, timeout=15)
-        
-        if response.status_code != 200:
-            print(f"⚠️ HTTP ERROR {response.status_code}: Unable to reach UFC Stats.")
-            return event_links
-            
-        soup = BeautifulSoup(response.text, 'html.parser')
-    except Exception as e:
-        print(f"⚠️ CONNECTION ERROR: {e}")
-        return event_links
+    for a in all_anchors:
+        href = a['href'].strip()
+        if 'event-details' in href:
+            if href not in event_links:
+                event_links.append(href)
+                
+                # Safely map the readable event name while we have the element
+                name = a.get_text(strip=True)
+                if name:
+                    event_name_map[href] = name
+                
+                if testing_mode and len(event_links) >= 5:
+                    break
 
-    # TARGET EXCLUSIVELY: <a class="b-link b-link_style_black">
-    targeted_anchors = soup.find_all('a', class_='b-link b-link_style_black')
-    print(f"Diagnostics: Found {len(targeted_anchors)} matching theme anchor elements.")
-
-    for a in targeted_anchors:
-        href = a.get('href', '').strip()
-        
-        # Verify it has the event-details path
-        if 'event-details' in href and href not in event_links:
-            event_links.append(href)
-            
-            if testing_mode and len(event_links) >= 5:
-                break
-
-    # Natural throttling delay
-    time.sleep(random.uniform(2.0, 3.5))
-
-    print(f"Successfully tracked {len(event_links)} total event links.")
-    return event_links
-
+    print(f"Successfully extracted {len(event_links)} total events.")
+    return event_links, event_name_map
 def get_fight_links(event_url):
     """
     Get links to all fights from an event page
@@ -695,8 +684,7 @@ def main(testing_mode=False, update_mode=False):
     else:
         print("\nStep 2: Scraping fight data...")
     
-    # Check if fight data already exists
-    # Check if fight data already exists
+# Check if fight data already exists
     if os.path.exists('frontend/public/data/fights.json'):
         print("Loading existing fight data into memory for appending...")
         with open('frontend/public/data/fights.json', 'r', encoding='utf-8') as f:
@@ -704,34 +692,20 @@ def main(testing_mode=False, update_mode=False):
     else:
         fights = []
 
-    # Get all event links from the main index page
-    # Note: get_event_links() returns them from NEWEST to OLDEST
-    event_links = get_event_links(testing_mode=testing_mode)
-    print(f"Total historical events found on UFC Stats: {len(event_links)}")
-
-    # NEW: We must also fetch the names matching those links directly from the main page
-    # to avoid the 'NoneType' title bug.
-    soup = get_soup(EVENTS_URL)
-    event_name_map = {}
-    if soup:
-        for a in soup.find_all('a', href=True):
-            if '/event-details/' in a['href']:
-                name_text = a.get_text(strip=True)
-                if name_text:
-                    event_name_map[a['href']] = name_text
+    # Unpack both the links and the mapping dictionary in one single network call!
+    event_links, event_name_map = get_event_links(testing_mode=testing_mode)
+    print(f"Total historical events ready for processing: {len(event_links)}")
 
     # CRITICAL CHRONOLOGY: We loop through event_links BACKWARDS (reversed)
-    # This ensures old events stay at the top and brand-new 2026 events append cleanly to the bottom!
+    # This ensures old events stay at the top and brand-new events append cleanly to the bottom
     for i, event_link in enumerate(reversed(event_links)):
-        # Calculate true index going forward
         current_idx = len(event_links) - i
         
-        # Pull the name we mapped from the index page
+        # Pull the name we safely mapped in get_event_links
         event_name = event_name_map.get(event_link, "Unknown Event")
         
-        # If we are in update mode and already have this event name in fights.json, skip it instantly!
+        # If we are in update mode and already have this event name, skip it instantly
         if update_mode and event_name in processed_event_names and event_name != "Unknown Event":
-            print(f" [{current_idx}/{len(event_links)}] Skipping: {event_name} (Already processed)")
             continue
             
         print(f" [{current_idx}/{len(event_links)}] 🟢 NEW DATA DETECTED! Scraping event: {event_name}")
