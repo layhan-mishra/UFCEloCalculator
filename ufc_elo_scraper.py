@@ -693,10 +693,6 @@ def main(testing_mode=False, update_mode=False):
         except Exception as e:
             print(f"Could not load existing fights for update: {e}")
 
-    site_names = set(event_name_map.values())
-    print(f"[DEBUG] site={len(site_names)} db={len(processed_event_names)} overlap={len(site_names & processed_event_names)}")
-    print("[DEBUG] in DB, not on site:", list(processed_event_names - site_names)[:5])
-
     # Step 2: Scrape fight data
     if testing_mode:
         print("\nStep 2: Scraping fight data (TESTING MODE - limited to ~10 fights)...")
@@ -714,6 +710,10 @@ def main(testing_mode=False, update_mode=False):
     # Unpack both the links and the mapping dictionary in one single network call!
     event_links, event_name_map = get_event_links(testing_mode=testing_mode)
     print(f"Total historical events ready for processing: {len(event_links)}")
+
+    site_names = set(event_name_map.values())
+    print(f"[DEBUG] site={len(site_names)} db={len(processed_event_names)} overlap={len(site_names & processed_event_names)}")
+    print("[DEBUG] in DB, not on site:", list(processed_event_names - site_names)[:5])
 
     # CRITICAL CHRONOLOGY: We loop through event_links BACKWARDS (reversed)
     # This ensures old events stay at the top and brand-new events append cleanly to the bottom
