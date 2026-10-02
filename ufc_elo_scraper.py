@@ -13,7 +13,7 @@ import json
 import random
 from matplotlib.pyplot import title
 import requests
-from bs4 import BeautifulSoup, soup
+from bs4 import BeautifulSoup
 import pandas as pd
 from datetime import datetime
 
