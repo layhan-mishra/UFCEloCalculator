@@ -11,8 +11,9 @@ import os
 import time
 import json
 import random
+from matplotlib.pyplot import title
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, soup
 import pandas as pd
 from datetime import datetime
 
@@ -58,6 +59,8 @@ def get_soup(url):
         
         with urllib.request.urlopen(req, timeout=20) as response:
             html = response.read()
+            print(f"[DEBUG] {url} -> HTTP {response.status}, final={response.geturl()}, bytes={len(html)}")
+            print(f"[DEBUG] headers: {dict(response.headers)}")
             if len(html) < 1000:
                 print(f"⚠️ Warning: Unusually small payload received from {url}")
             return BeautifulSoup(html, 'html.parser')
@@ -170,6 +173,10 @@ def get_event_links(testing_mode=False):
         print("⚠️ CRITICAL: Could not load the master events page.")
         return event_links, event_name_map
 
+    title = soup.title.get_text(strip=True) if soup.title else None
+    print(f"[DEBUG] title={title!r} anchors={len(soup.find_all('a', href=True))} tables={len(soup.find_all('table'))}")
+    print(f"[DEBUG] text head: {soup.get_text(' ', strip=True)[:300]!r}")
+
     # Universal catch for ANY anchor tag containing 'event-details' in the path
     # This completely bypasses the broken 'b-link_style_black' class checking
     all_anchors = soup.find_all('a', href=True)
@@ -187,6 +194,14 @@ def get_event_links(testing_mode=False):
                 
                 if testing_mode and len(event_links) >= 5:
                     break
+
+    if not event_links:
+        os.makedirs('debug', exist_ok=True)
+        with open('debug/events_page.html', 'w', encoding='utf-8') as f:
+            f.write(str(soup))
+        print(f"[DEBUG] sample hrefs: {[a['href'] for a in all_anchors[:15]]}")
+        if not testing_mode:
+            raise RuntimeError("0 events extracted - see debug/events_page.html")
 
     print(f"Successfully extracted {len(event_links)} total events.")
     return event_links, event_name_map
@@ -677,6 +692,10 @@ def main(testing_mode=False, update_mode=False):
             print(f"Found {len(processed_event_names)} events already in database.")
         except Exception as e:
             print(f"Could not load existing fights for update: {e}")
+
+    site_names = set(event_name_map.values())
+    print(f"[DEBUG] site={len(site_names)} db={len(processed_event_names)} overlap={len(site_names & processed_event_names)}")
+    print("[DEBUG] in DB, not on site:", list(processed_event_names - site_names)[:5])
 
     # Step 2: Scrape fight data
     if testing_mode:
